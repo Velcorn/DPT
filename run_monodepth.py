@@ -14,10 +14,11 @@ from dpt.models import DPTDepthModel
 from dpt.midas_net import MidasNet_large
 from dpt.transforms import Resize, NormalizeImage, PrepareForNet
 
-#from util.misc import visualize_attention
+
+# from util.misc import visualize_attention
 
 
-def run(input_path, output_path, model_path, model_type="dpt_hybrid", optimize=True):
+def run(input_path, output_path, model_path, model_type="dpt_hybrid_nyu", optimize=True):
     """Run MonoDepthNN to compute depth maps.
 
     Args:
@@ -44,7 +45,7 @@ def run(input_path, output_path, model_path, model_type="dpt_hybrid", optimize=T
     elif model_type == "dpt_hybrid":  # DPT-Hybrid
         net_w = net_h = 384
         model = DPTDepthModel(
-            path=model_path,
+            path="weights/dpt_hybrid_nyu-2ce69ec7.pt",
             backbone="vitb_rn50_384",
             non_negative=True,
             enable_attention_hooks=False,
@@ -70,7 +71,7 @@ def run(input_path, output_path, model_path, model_type="dpt_hybrid", optimize=T
         net_h = 480
 
         model = DPTDepthModel(
-            path=model_path,
+            path="weights/dpt_hybrid_nyu-2ce69ec7.pt",
             scale=0.000305,
             shift=0.1378,
             invert=True,
@@ -110,7 +111,7 @@ def run(input_path, output_path, model_path, model_type="dpt_hybrid", optimize=T
 
     model.eval()
 
-    if optimize == True and device == torch.device("cuda"):
+    if optimize and device == torch.device("cuda"):
         model = model.to(memory_format=torch.channels_last)
         model = model.half()
 
@@ -137,7 +138,7 @@ def run(input_path, output_path, model_path, model_type="dpt_hybrid", optimize=T
             height, width, _ = img.shape
             top = height - 352
             left = (width - 1216) // 2
-            img = img[top : top + 352, left : left + 1216, :]
+            img = img[top: top + 352, left: left + 1216, :]
 
         img_input = transform({"image": img})["image"]
 
@@ -145,7 +146,7 @@ def run(input_path, output_path, model_path, model_type="dpt_hybrid", optimize=T
         with torch.no_grad():
             sample = torch.from_numpy(img_input).to(device).unsqueeze(0)
 
-            if optimize == True and device == torch.device("cuda"):
+            if optimize and device == torch.device("cuda"):
                 sample = sample.to(memory_format=torch.channels_last)
                 sample = sample.half()
 
@@ -157,9 +158,9 @@ def run(input_path, output_path, model_path, model_type="dpt_hybrid", optimize=T
                     mode="bicubic",
                     align_corners=False,
                 )
-                .squeeze()
-                .cpu()
-                .numpy()
+                    .squeeze()
+                    .cpu()
+                    .numpy()
             )
 
             if model_type == "dpt_hybrid_kitti":

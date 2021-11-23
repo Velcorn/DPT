@@ -175,7 +175,7 @@ def write_depth(path, depth, bits=1, absolute_depth=False):
         path (str): filepath without extension
         depth (array): depth
     """
-    write_pfm(path + ".pfm", depth.astype(np.float32))
+    # write_pfm(path + ".pfm", depth.astype(np.float32))
 
     if absolute_depth:
         out = depth
@@ -191,9 +191,13 @@ def write_depth(path, depth, bits=1, absolute_depth=False):
             out = np.zeros(depth.shape, dtype=depth.dtype)
 
     if bits == 1:
-        cv2.imwrite(path + ".png", out.astype("uint8"), [cv2.IMWRITE_PNG_COMPRESSION, 0])
+        out = cv2.normalize(out, 0, 255, norm_type=cv2.NORM_MINMAX)
+        out = cv2.resize(out, (320, 240))
+        cv2.imwrite(path + ".jpg", out)
     elif bits == 2:
-        cv2.imwrite(path + ".png", out.astype("uint16"), [cv2.IMWRITE_PNG_COMPRESSION, 0])
+        out = cv2.normalize(out, 0, 255, norm_type=cv2.NORM_MINMAX)
+        out = cv2.resize(out, (320, 240))
+        cv2.imwrite(path + ".jpg", out)
 
     return
 
