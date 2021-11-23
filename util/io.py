@@ -190,14 +190,15 @@ def write_depth(path, depth, bits=1, absolute_depth=False):
         else:
             out = np.zeros(depth.shape, dtype=depth.dtype)
 
-    if bits == 1:
-        out = cv2.normalize(out, 0, 255, norm_type=cv2.NORM_MINMAX)
-        out = cv2.resize(out, (320, 240))
-        cv2.imwrite(path + ".jpg", out)
+    '''if bits == 1:
+        cv2.imwrite(path + ".png", out.astype("uint8"), [cv2.IMWRITE_PNG_COMPRESSION, 0])
     elif bits == 2:
-        out = cv2.normalize(out, 0, 255, norm_type=cv2.NORM_MINMAX)
-        out = cv2.resize(out, (320, 240))
-        cv2.imwrite(path + ".jpg", out)
+        cv2.imwrite(path + ".png", out.astype("uint16"), [cv2.IMWRITE_PNG_COMPRESSION, 0])'''
+
+    # JW: Normalize, resize and save as JPEG
+    out = cv2.normalize(out, 0, 255, norm_type=cv2.NORM_MINMAX)
+    out = cv2.resize(out, (320, 240))
+    cv2.imwrite(path, out)
 
     return
 

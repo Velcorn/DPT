@@ -14,11 +14,14 @@ from dpt.models import DPTDepthModel
 from dpt.midas_net import MidasNet_large
 from dpt.transforms import Resize, NormalizeImage, PrepareForNet
 
+# JW: Added packages
+import sys
+from tqdm import tqdm
 
 # from util.misc import visualize_attention
 
 
-def run(input_path, output_path, model_path, model_type="dpt_hybrid_nyu", optimize=True):
+def run(input_path, output_path, model_path, model_type, optimize=True):
     """Run MonoDepthNN to compute depth maps.
 
     Args:
@@ -26,11 +29,11 @@ def run(input_path, output_path, model_path, model_type="dpt_hybrid_nyu", optimi
         output_path (str): path to output folder
         model_path (str): path to saved model
     """
-    print("initialize")
+    print("Initialize")
 
     # select device
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    print("device: %s" % device)
+    print("Device: %s" % device)
 
     # load network
     if model_type == "dpt_large":  # DPT-Large
@@ -45,7 +48,7 @@ def run(input_path, output_path, model_path, model_type="dpt_hybrid_nyu", optimi
     elif model_type == "dpt_hybrid":  # DPT-Hybrid
         net_w = net_h = 384
         model = DPTDepthModel(
-            path="weights/dpt_hybrid_nyu-2ce69ec7.pt",
+            path=model_path,
             backbone="vitb_rn50_384",
             non_negative=True,
             enable_attention_hooks=False,
@@ -71,7 +74,7 @@ def run(input_path, output_path, model_path, model_type="dpt_hybrid_nyu", optimi
         net_h = 480
 
         model = DPTDepthModel(
-            path="weights/dpt_hybrid_nyu-2ce69ec7.pt",
+            path=model_path,
             scale=0.000305,
             shift=0.1378,
             invert=True,
@@ -118,18 +121,21 @@ def run(input_path, output_path, model_path, model_type="dpt_hybrid_nyu", optimi
     model.to(device)
 
     # get input
-    img_names = glob.glob(os.path.join(input_path, "*"))
+    # JW: Changed input_path glob pattern to get all images in subfolders
+    img_names = glob.glob(f"{input_path}/*/*/*/*.jpg")  # glob.glob(f"{input_path}/*.jpg")
     num_images = len(img_names)
 
     # create output folder
     os.makedirs(output_path, exist_ok=True)
 
-    print("start processing")
-    for ind, img_name in enumerate(img_names):
+    print("Processing...")
+    for ind, img_name in enumerate(tqdm(img_names, file=sys.stdout)):
         if os.path.isdir(img_name):
             continue
 
-        print("  processing {} ({}/{})".format(img_name, ind + 1, num_images))
+        # JW: Change backward to forward slash (on Windows)
+        img_name = img_name.replace("\\", "/")
+        # print(f"  Processing {img_name} ({ind + 1}/{num_images})")
         # input
 
         img = util.io.read_image(img_name)
@@ -157,10 +163,7 @@ def run(input_path, output_path, model_path, model_type="dpt_hybrid_nyu", optimi
                     size=img.shape[:2],
                     mode="bicubic",
                     align_corners=False,
-                )
-                    .squeeze()
-                    .cpu()
-                    .numpy()
+                ).squeeze().cpu().numpy()
             )
 
             if model_type == "dpt_hybrid_kitti":
@@ -169,19 +172,25 @@ def run(input_path, output_path, model_path, model_type="dpt_hybrid_nyu", optimi
             if model_type == "dpt_hybrid_nyu":
                 prediction *= 1000.0
 
-        filename = os.path.join(
-            output_path, os.path.splitext(os.path.basename(img_name))[0]
-        )
+        '''filename = os.path.join(
+            output_path, os.path.splitext(os.path.basename(img_name))[0])'''
+
+        # JW: Create dir and adjust filename to new path
+        path = f"{output_path}/{'/'.join(img_name.split('/')[-4:-1])}"
+        os.makedirs(path, exist_ok=True)
+        filename = f"{output_path}/{'/'.join(img_name.split('/')[-4:])}"
         util.io.write_depth(filename, prediction, bits=2, absolute_depth=args.absolute_depth)
 
-    print("finished")
+    print("Finished!")
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
 
+    # JW: Adjust default input_path
     parser.add_argument(
-        "-i", "--input_path", default="input", help="folder with input images"
+        "-i", "--input_path", default="F:/Programming/DenseDepth/chalearn-input", help="folder with input images"
+        # default="input"
     )
 
     parser.add_argument(
@@ -195,10 +204,11 @@ if __name__ == "__main__":
         "-m", "--model_weights", default=None, help="path to model weights"
     )
 
+    # JW: Change default model to nyu
     parser.add_argument(
         "-t",
         "--model_type",
-        default="dpt_hybrid",
+        default="dpt_hybrid_nyu",
         help="model type [dpt_large|dpt_hybrid|midas_v21]",
     )
 
